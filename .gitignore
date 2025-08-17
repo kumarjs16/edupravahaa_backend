@@ -1,0 +1,8 @@
+# Ignore environment variables
+.env 
+.env.example
+
+# Other ignores
+__pycache__/
+*.pyc
+node_modules/
