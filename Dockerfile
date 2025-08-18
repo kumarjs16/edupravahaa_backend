@@ -19,7 +19,5 @@ COPY . /code/
 
 RUN mkdir -p /code/media /code/static
 
-COPY entrypoint.sh /code/
-RUN chmod +x /code/entrypoint.sh
-
-ENTRYPOINT ["/code/entrypoint.sh"]
+# Optional: If you want a default command, specify it here
+CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
