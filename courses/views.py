@@ -1,16 +1,18 @@
-from rest_framework import generics, status
+from rest_framework import generics, status, views
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from django.db.models import Q
+from django.utils import timezone
+from datetime import datetime, timedelta
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
 from .models import Course, Enrollment
 from .serializers import (
-    CourseSerializer, CourseCreateSerializer,
-    EnrollmentSerializer, EnrollmentCreateSerializer
+    CourseSerializer
 )
-from accounts.permissions import IsTeacher, IsStudent, IsTeacherOrAdmin
+from accounts.permissions import IsTeacher, IsStudent, IsTeacherOrAdmin, IsAdmin
+from payments.models import CourseSubscription
 
 class CourseListView(generics.ListAPIView):
     serializer_class = CourseSerializer
@@ -32,93 +34,38 @@ class CourseListView(generics.ListAPIView):
         category = self.request.query_params.get('category', None)
         if category:
             queryset = queryset.filter(category__iexact=category)
-            
-        # Filter by teacher
-        teacher_id = self.request.query_params.get('teacher', None)
-        if teacher_id:
-            queryset = queryset.filter(teacher_id=teacher_id)
+
             
         return queryset
 
-class CourseDetailView(generics.RetrieveAPIView):
-    queryset = Course.objects.filter(is_active=True)
+
+
+
+# Admin Course Management Views
+class AdminCourseCreateView(generics.CreateAPIView):
+    """Admin-only API to create new courses"""
     serializer_class = CourseSerializer
-    permission_classes = [AllowAny]
-    lookup_field = 'slug'
-
-class CourseCreateView(generics.CreateAPIView):
-    queryset = Course.objects.all()
-    serializer_class = CourseCreateSerializer
-    permission_classes = [IsAuthenticated, IsTeacherOrAdmin]
+    permission_classes = [IsAuthenticated, IsAdmin]
     
-    def perform_create(self, serializer):
-        serializer.save(teacher=self.request.user)
-
-class CourseUpdateView(generics.UpdateAPIView):
-    queryset = Course.objects.all()
-    serializer_class = CourseCreateSerializer
-    permission_classes = [IsAuthenticated, IsTeacherOrAdmin]
-    lookup_field = 'slug'
-    
-    def get_queryset(self):
-        # Teachers can only update their own courses
-        if self.request.user.is_teacher:
-            return Course.objects.filter(teacher=self.request.user)
-        # Admins can update any course
-        return Course.objects.all()
-
-class CourseDeleteView(generics.DestroyAPIView):
-    queryset = Course.objects.all()
-    permission_classes = [IsAuthenticated, IsTeacherOrAdmin]
-    lookup_field = 'slug'
-    
-    def get_queryset(self):
-        # Teachers can only delete their own courses
-        if self.request.user.is_teacher:
-            return Course.objects.filter(teacher=self.request.user)
-        # Admins can delete any course
-        return Course.objects.all()
-    
-    def destroy(self, request, *args, **kwargs):
-        instance = self.get_object()
-        # Soft delete - just mark as inactive
-        instance.is_active = False
-        instance.save()
-        return Response(
-            {"message": "Course deleted successfully"},
-            status=status.HTTP_204_NO_CONTENT
-        )
-
-class TeacherCoursesView(generics.ListAPIView):
-    serializer_class = CourseSerializer
-    permission_classes = [IsAuthenticated, IsTeacher]
-    
-    def get_queryset(self):
-        return Course.objects.filter(teacher=self.request.user)
-
-class StudentEnrollmentsView(generics.ListAPIView):
-    serializer_class = EnrollmentSerializer
-    permission_classes = [IsAuthenticated, IsStudent]
-    
-    def get_queryset(self):
-        return Enrollment.objects.filter(
-            student=self.request.user,
-            payment_status='completed'
-        )
-
-class CourseEnrollmentsView(generics.ListAPIView):
-    serializer_class = EnrollmentSerializer
-    permission_classes = [IsAuthenticated, IsTeacherOrAdmin]
-    
-    def get_queryset(self):
-        course_slug = self.kwargs.get('slug')
-        queryset = Enrollment.objects.filter(
-            course__slug=course_slug,
-            payment_status='completed'
-        )
+    @swagger_auto_schema(
+        operation_description="Create a new course with all details (Admin only)",
+        request_body=CourseSerializer
+    )
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        course = serializer.save()
         
-        # Teachers can only see enrollments for their courses
-        if self.request.user.is_teacher:
-            queryset = queryset.filter(course__teacher=self.request.user)
-            
-        return queryset
+        return Response({
+            'message': 'Course created successfully',
+            'course': CourseSerializer(course, context={'request': request}).data
+        }, status=status.HTTP_201_CREATED)
+
+
+class AdminCourseUpdateView(generics.UpdateAPIView):
+    """Admin-only API to update course details"""
+    queryset = Course.objects.all()
+    serializer_class = CourseSerializer
+    permission_classes = [IsAuthenticated, IsAdmin]
+    lookup_field = 'id'
+

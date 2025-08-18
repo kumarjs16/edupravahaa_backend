@@ -3,7 +3,7 @@ from rest_framework_simplejwt.views import TokenRefreshView
 
 from .views import (
     RegisterView, LoginView, LogoutView, ProfileView,
-    CreateTeacherView, ListTeachersView, ListStudentsView,
+    TeacherRegisterView, ListTeachersView, ListStudentsView,
     ChangePasswordView, SendOTPView,
     VerifyOTPView, ForgotPasswordView, TrialStatusView
 )
@@ -28,7 +28,7 @@ urlpatterns = [
     path('trial-status/', TrialStatusView.as_view(), name='trial_status'),
 
     # Admin endpoints
-    path('admin/create-teacher/', CreateTeacherView.as_view(), name='create_teacher'),
+    path('register/teacher/', TeacherRegisterView.as_view(), name='register_teacher'),
     path('admin/teachers/', ListTeachersView.as_view(), name='list_teachers'),
     path('admin/students/', ListStudentsView.as_view(), name='list_students'),
 ]

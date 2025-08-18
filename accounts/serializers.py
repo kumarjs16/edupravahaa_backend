@@ -47,6 +47,57 @@ class RegisterSerializer(serializers.Serializer):
         
         return user
 
+class TeacherCreateSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(write_only=True, min_length=8)
+    
+    class Meta:
+        model = User
+        fields = ['username', 'email', 'phone_number', 'password', 
+                  'first_name', 'last_name']
+        
+    def validate_email(self, value):
+        if User.objects.filter(email=value).exists():
+            raise serializers.ValidationError("Email already registered")
+        return value
+    
+    def validate_phone_number(self, value):
+        if User.objects.filter(phone_number=value).exists():
+            raise serializers.ValidationError("Phone number already registered")
+        return value
+    
+    def create(self, validated_data):
+        password = validated_data.pop('password')
+        user = User.objects.create_user(
+            **validated_data,
+            role='teacher',
+            email_verified=True,  # Teachers are pre-verified by admin
+            phone_verified=True
+        )
+        user.set_password(password)
+        user.save()
+        return user
+
+
+class ChangePasswordSerializer(serializers.Serializer):
+    old_password = serializers.CharField(required=True)
+    new_password = serializers.CharField(required=True, min_length=8)
+    
+    def validate_old_password(self, value):
+        user = self.context.get('request').user
+        if not user.check_password(value):
+            raise serializers.ValidationError("Old password is incorrect")
+        return value
+    
+    def validate_new_password(self, value):
+        # Add any password strength validation here
+        return value
+    
+    def save(self):
+        user = self.context.get('request').user
+        user.set_password(self.validated_data['new_password'])
+        user.save()
+        return user
+
 
 class LoginSerializer(serializers.Serializer):
     identifier = serializers.CharField()
@@ -156,61 +207,11 @@ class ForgotPasswordSerializer(serializers.Serializer):
         return attrs
 
 
-# class TeacherCreateSerializer(serializers.ModelSerializer):
-#     password = serializers.CharField(write_only=True, min_length=8)
-    
-#     class Meta:
-#         model = User
-#         fields = ['username', 'email', 'phone_number', 'password', 
-#                   'first_name', 'last_name']
-        
-#     def validate_email(self, value):
-#         if User.objects.filter(email=value).exists():
-#             raise serializers.ValidationError("Email already registered")
-#         return value
-    
-#     def validate_phone_number(self, value):
-#         if User.objects.filter(phone_number=value).exists():
-#             raise serializers.ValidationError("Phone number already registered")
-#         return value
-    
-#     def create(self, validated_data):
-#         password = validated_data.pop('password')
-#         user = User.objects.create_user(
-#             **validated_data,
-#             role='teacher',
-#             email_verified=True,  
-#             phone_verified=True
-#         )
-#         user.set_password(password)
-#         user.save()
-#         return user
-
-
 class TeacherProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = TeacherProfile
         fields = ['bio', 'qualifications']
 
-class TeacherCreateSerializer(serializers.ModelSerializer):
-    bio = serializers.CharField(required=False, allow_blank=True)
-    qualifications = serializers.ListField(child=serializers.CharField(), required=False)
-
-    class Meta:
-        model = User
-        fields = ['email', 'phone_number', 'password', 'first_name', 'last_name', 'bio', 'qualifications']
-
-    def create(self, validated_data):
-        profile_data = {
-            'bio': validated_data.pop('bio', ''),
-            'qualifications': validated_data.pop('qualifications', [])
-        }
-        user = User.objects.create_user(
-            role='teacher',
-            **validated_data
-        )
-        TeacherProfile.objects.create(user=user, **profile_data)
-        return user
 
 class ChangePasswordSerializer(serializers.Serializer):
     old_password = serializers.CharField(required=True)

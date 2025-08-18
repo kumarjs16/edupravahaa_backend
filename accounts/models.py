@@ -4,6 +4,7 @@ from django.utils import timezone
 from django.conf import settings
 from datetime import timedelta
 from django.core.exceptions import ValidationError
+from django.core.validators import MinValueValidator, MaxValueValidator
 import random
 
 
@@ -26,7 +27,7 @@ class User(AbstractUser):
     has_purchased_courses = models.BooleanField(default=False)
 
     USERNAME_FIELD = 'email'
-    # REQUIRED_FIELDS = ['username']
+    REQUIRED_FIELDS = ['username']
     
     class Meta:
         db_table = 'users'
@@ -35,6 +36,11 @@ class User(AbstractUser):
         return f"{self.email} - {self.role}"
 
     def save(self, *args, **kwargs):
+        # Set admin role for superusers
+        if self.is_superuser and self.role != 'admin':
+            self.role = 'admin'
+
+        # Set trial end date only for new students
         if not self.pk and not self.trial_end_date and self.role == 'student':
             # Set trial end date only for students on registration
             trial_settings = getattr(settings, 'TRIAL_SETTINGS', {})
@@ -94,30 +100,34 @@ class User(AbstractUser):
 
 
 class TeacherProfile(models.Model):
+    """Extended profile for teachers with professional information"""
     user = models.OneToOneField(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
+        User, 
+        on_delete=models.CASCADE, 
         related_name='teacher_profile',
         limit_choices_to={'role': 'teacher'}
     )
-    bio = models.TextField(blank=True, help_text="Teacher's biography or description")
-    qualifications = models.JSONField(default=list, blank=True, help_text="List of qualifications, e.g., ['PhD', '10 years experience']")
+    qualification = models.CharField(max_length=200)
+    experience_years = models.IntegerField(default=0, validators=[MinValueValidator(0), MaxValueValidator(50)])
+    specialization = models.JSONField(default=list, help_text="List of subjects/areas of expertise")
+    bio = models.TextField(blank=True, help_text="Brief professional biography")
+    profile_picture = models.ImageField(upload_to='teacher_profiles/', null=True, blank=True)
+    linkedin_url = models.URLField(blank=True)
+    resume = models.FileField(upload_to='teacher_resumes/', null=True, blank=True)
+    is_verified = models.BooleanField(default=False, help_text="Verified by admin")
+    teaching_languages = models.JSONField(default=list, blank=True)
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
     class Meta:
         db_table = 'teacher_profiles'
-        indexes = [
-            models.Index(fields=['user']),
-        ]
+        verbose_name = 'Teacher Profile'
+        verbose_name_plural = 'Teacher Profiles'
     
-    def __str__(self):
-        return f"Profile for {self.user.email}"
-    
-    def save(self, *args, **kwargs):
-        if self.user.role != 'teacher':
-            raise ValidationError("TeacherProfile can only be created for users with role 'teacher'.")
-        super().save(*args, **kwargs)
+    def _str_(self):
+        return f"Teacher: {self.user.get_full_name() or self.user.email}"
+
 
         
 class OTP(models.Model):

@@ -330,24 +330,49 @@ class ProfileView(generics.RetrieveUpdateAPIView):
     def get_object(self):
         return self.request.user
 
-class CreateTeacherView(generics.CreateAPIView):
+class TeacherRegisterView(generics.CreateAPIView):
     queryset = User.objects.all()
     serializer_class = TeacherCreateSerializer
-    permission_classes = [IsAuthenticated, IsAdmin]
+    permission_classes = [AllowAny]  # Or you might want [IsAuthenticated, IsAdmin] if only admins can create teachers
     
     @swagger_auto_schema(
-        operation_description="Create a new teacher account with profile (Admin only)",
-        responses={201: UserSerializer}
+        operation_description="Register a new teacher account",
+        responses={
+            201: openapi.Response(
+                description="Teacher registration successful",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'message': openapi.Schema(type=openapi.TYPE_STRING),
+                        'user': openapi.Schema(type=openapi.TYPE_OBJECT),
+                    }
+                )
+            )
+        }
     )
     def post(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
         
-        return Response({
-            'user': UserSerializer(user).data,
-            'message': 'Teacher account and profile created successfully'
-        }, status=status.HTTP_201_CREATED)
+        # Generate JWT tokens for immediate login
+        refresh = RefreshToken.for_user(user)
+        
+        response_data = {
+            'message': 'Teacher registration successful!',
+            'access': str(refresh.access_token),
+            'refresh': str(refresh),
+            'user': {
+                'id': user.id,
+                'username': user.username,
+                'email': user.email,
+                'role': user.role,
+                'first_name': user.first_name,
+                'last_name': user.last_name
+            }
+        }
+        
+        return Response(response_data, status=status.HTTP_201_CREATED)
 
 class ListTeachersView(generics.ListAPIView):
     serializer_class = UserSerializer
