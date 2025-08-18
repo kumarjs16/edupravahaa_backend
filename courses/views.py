@@ -1,4 +1,4 @@
-from rest_framework import generics, status, views
+from rest_framework import generics, status, views, generics
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from django.db.models import Q
@@ -9,7 +9,7 @@ from drf_yasg import openapi
 
 from .models import Course, Enrollment
 from .serializers import (
-    CourseSerializer
+    CourseSerializer, PurchasedCoursesSerializer
 )
 from accounts.permissions import IsTeacher, IsStudent, IsTeacherOrAdmin, IsAdmin
 from payments.models import CourseSubscription
@@ -37,8 +37,6 @@ class CourseListView(generics.ListAPIView):
 
             
         return queryset
-
-
 
 
 # Admin Course Management Views
@@ -69,3 +67,14 @@ class AdminCourseUpdateView(generics.UpdateAPIView):
     permission_classes = [IsAuthenticated, IsAdmin]
     lookup_field = 'id'
 
+
+class MyCoursesView(generics.ListAPIView):
+    """List all purchased courses for a student"""
+    serializer_class = PurchasedCoursesSerializer
+    permission_classes = [IsAuthenticated, IsStudent]
+    
+    def get_queryset(self):
+        return CourseSubscription.objects.filter(
+            student=self.request.user,
+            payment_status='completed'
+        ).select_related('course').order_by('-purchased_at')

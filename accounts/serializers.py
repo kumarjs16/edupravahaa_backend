@@ -232,9 +232,3 @@ class ChangePasswordSerializer(serializers.Serializer):
         user.set_password(self.validated_data['new_password'])
         user.save()
         return user
-
-
-class OrganizationSerializer(serializers.Serializer):
-    name = serializers.CharField(max_length=100)
-    domain = serializers.CharField(max_length=100)
-    description = serializers.CharField(required=False)

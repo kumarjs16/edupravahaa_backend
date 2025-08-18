@@ -6,3 +6,32 @@
 __pycache__/
 *.pyc
 node_modules/
+
+
+# Ignore Django migrations (but keep __init__.py so package works)
+**/migrations/*
+!**/migrations/__init__.py
+
+
+# Media and Static (ignore generated/uploaded files, keep folders)
+media/*
+!media/.gitkeep
+static/*
+!static/.gitkeep
+
+
+
+# ======================
+# Python / Django
+# ======================
+__pycache__/
+*.py[cod]
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+*.log
+*.pot
+*.pyc

@@ -122,8 +122,6 @@ class CreateOrderView(views.APIView):
                 'key': settings.RAZORPAY_KEY_ID,
                 'subscription_id': subscription.id
             }, status=status.HTTP_200_OK)
-
-
             
         except razorpay.errors.BadRequestError as e:
             logger.error(f"Razorpay error creating order: {str(e)}")
@@ -173,7 +171,6 @@ class VerifyPaymentView(views.APIView):
         
         # Verify subscription exists
         try:
-            print("--------------", subscription_id, order_id, request.user)
             subscription = CourseSubscription.objects.get(
                 id=subscription_id, order_id=order_id, student=request.user
             )
@@ -181,25 +178,26 @@ class VerifyPaymentView(views.APIView):
             logger.error(f"Subscription {subscription_id} not found for order {order_id}")
             return Response({"error": "Subscription not found"}, status=status.HTTP_404_NOT_FOUND)
         
+        # Define params_dict for both testing and production cases
+        params_dict = {
+            'razorpay_order_id': order_id,
+            'razorpay_payment_id': payment_id,
+            'razorpay_signature': signature
+        }
 
-        # Mock signature verification for testing without valid keys
+        # Mock signature verification for testing
         if settings.RAZORPAY_KEY_SECRET == 'fake_secret_for_testing':
             # Assume signature is valid for testing
             pass
         else:
             # Original Razorpay SDK verification
-            params_dict = {
-                'razorpay_order_id': order_id,
-                'razorpay_payment_id': payment_id,
-                'razorpay_signature': signature
-            }
-        # try:
-        #     client.utility.verify_payment_signature(params_dict)
-        # except razorpay.errors.SignatureVerificationError as e:
-        #     logger.error(f"Signature verification failed: {str(e)}")
-        #     subscription.payment_status = 'failed'
-        #     subscription.save()
-        #     return Response({"error": "Invalid payment signature"}, status=status.HTTP_400_BAD_REQUEST)
+            try:
+                client.utility.verify_payment_signature(params_dict)
+            except razorpay.errors.SignatureVerificationError as e:
+                logger.error(f"Signature verification failed: {str(e)}")
+                subscription.payment_status = 'failed'
+                subscription.save()
+                return Response({"error": "Invalid payment signature"}, status=status.HTTP_400_BAD_REQUEST)
         
         # Update subscription
         try:
