@@ -11,6 +11,7 @@ node_modules/
 # Ignore Django migrations (but keep __init__.py so package works)
 **/migrations/*
 !**/migrations/__init__.py
+**/migrations/*.pyc
 
 
 # Media and Static (ignore generated/uploaded files, keep folders)
