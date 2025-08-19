@@ -50,6 +50,17 @@ class SendOTPView(views.APIView):
             return Response({
                 "error": "Invalid identifier. Please provide a valid email or phone number."
             }, status=status.HTTP_400_BAD_REQUEST)
+
+        # Check if email or phone is already registered for registration purpose
+        if purpose == 'registration':
+            if identifier_type == 'email' and User.objects.filter(email=identifier).exists():
+                return Response({
+                    "error": "Email is already registered."
+                }, status=status.HTTP_400_BAD_REQUEST)
+            if identifier_type == 'phone' and User.objects.filter(phone_number=identifier).exists():
+                return Response({
+                    "error": "Phone number is already registered."
+                }, status=status.HTTP_400_BAD_REQUEST)
         
         # Create OTP
         otp = OTP.objects.create(
@@ -333,7 +344,7 @@ class ProfileView(generics.RetrieveUpdateAPIView):
 class TeacherRegisterView(generics.CreateAPIView):
     queryset = User.objects.all()
     serializer_class = TeacherCreateSerializer
-    permission_classes = [AllowAny]  # Or you might want [IsAuthenticated, IsAdmin] if only admins can create teachers
+    permission_classes = [IsAuthenticated, IsAdmin]
     
     @swagger_auto_schema(
         operation_description="Register a new teacher account",

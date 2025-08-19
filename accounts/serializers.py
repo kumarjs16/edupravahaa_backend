@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth import authenticate
 from .models import User, TeacherProfile, OTP
-
+from django.db.models import Q
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -15,7 +15,7 @@ class UserSerializer(serializers.ModelSerializer):
 class RegisterSerializer(serializers.Serializer):
     username = serializers.CharField(max_length=150)
     email = serializers.EmailField()
-    phone_number = serializers.CharField(max_length=13)
+    phone_number = serializers.CharField(max_length=15)
     password = serializers.CharField(write_only=True, min_length=8)
 
     def validate_email(self, value):
@@ -31,6 +31,24 @@ class RegisterSerializer(serializers.Serializer):
     def validate(self, attrs):
         email = attrs['email']
         phone_number = attrs['phone_number']
+
+        # Check for verified OTPs for email and phone
+        if not OTP.objects.filter(
+            identifier=email,
+            otp_type='email',
+            purpose='registration',
+            is_verified=True
+        ).exists():
+            raise serializers.ValidationError("Email OTP not verified")
+
+        if not OTP.objects.filter(
+            identifier=phone_number,
+            otp_type='phone',
+            purpose='registration',
+            is_verified=True
+        ).exists():
+            raise serializers.ValidationError("Phone OTP not verified")
+
         return attrs
     
     def create(self, validated_data):
@@ -44,6 +62,19 @@ class RegisterSerializer(serializers.Serializer):
         )
         user.set_password(password)
         user.save()
+        
+        # Optional: Invalidate or delete the used OTPs to prevent reuse
+        OTP.objects.filter(
+            identifier=validated_data['email'],
+            otp_type='email',
+            purpose='registration'
+        ).delete()
+        
+        OTP.objects.filter(
+            identifier=validated_data['phone_number'],
+            otp_type='phone',
+            purpose='registration'
+        ).delete()
         
         return user
 
@@ -90,6 +121,10 @@ class ChangePasswordSerializer(serializers.Serializer):
     
     def validate_new_password(self, value):
         # Add any password strength validation here
+        if not any(c.isupper() for c in value):
+            raise serializers.ValidationError("Password must contain at least one uppercase letter")
+        if not any(c.isdigit() for c in value):
+            raise serializers.ValidationError("Password must contain at least one digit")
         return value
     
     def save(self):
@@ -109,32 +144,14 @@ class LoginSerializer(serializers.Serializer):
         
         if not identifier or not password:
             raise serializers.ValidationError('Must include "identifier" and "password".')
-        
+
         user = None
-        
-        # Check if identifier looks like an email
-        if '@' in identifier:
-            # Try to authenticate with email (USERNAME_FIELD is email)
-            user = authenticate(username=identifier, password=password)
-        
-        # If not authenticated yet, try with phone number
-        if not user:
-            try:
-                user_obj = User.objects.get(phone_number=identifier)
-                # Since USERNAME_FIELD is email, we need to use the user's email to authenticate
-                user = authenticate(username=user_obj.email, password=password)
-            except User.DoesNotExist:
-                pass
-        
-        # If still not authenticated, try with username
-        if not user:
-            try:
-                user_obj = User.objects.get(username=identifier)
-                # Since USERNAME_FIELD is email, we need to use the user's email to authenticate
-                user = authenticate(username=user_obj.email, password=password)
-            except User.DoesNotExist:
-                pass
-        
+        try:
+            user_obj = User.objects.get(Q(email=identifier) | Q(phone_number=identifier) | Q(username=identifier))
+            user = authenticate(username=user_obj.email, password=password)
+        except User.DoesNotExist:
+            raise serializers.ValidationError('Invalid credentials.')
+
         if not user:
             raise serializers.ValidationError('Invalid credentials.')
         
@@ -165,6 +182,13 @@ class ForgotPasswordSerializer(serializers.Serializer):
     otp_code = serializers.CharField(max_length=4)
     new_password = serializers.CharField(min_length=8)
     confirm_password = serializers.CharField(min_length=8)
+
+    def validate_new_password(self, value):
+        if not any(c.isupper() for c in value):
+            raise serializers.ValidationError("Password must contain at least one uppercase letter")
+        if not any(c.isdigit() for c in value):
+            raise serializers.ValidationError("Password must contain at least one digit")
+        return value
     
     def validate(self, attrs):
         if attrs['new_password'] != attrs['confirm_password']:
@@ -210,25 +234,6 @@ class ForgotPasswordSerializer(serializers.Serializer):
 class TeacherProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = TeacherProfile
-        fields = ['bio', 'qualifications']
+        fields = ['qualification', 'experience_years', 'specialization', 'bio', 
+        'profile_picture', 'linkedin_url', 'resume', 'is_verified', 'teaching_languages']
 
-
-class ChangePasswordSerializer(serializers.Serializer):
-    old_password = serializers.CharField(required=True)
-    new_password = serializers.CharField(required=True, min_length=8)
-    
-    def validate_old_password(self, value):
-        user = self.context.get('request').user
-        if not user.check_password(value):
-            raise serializers.ValidationError("Old password is incorrect")
-        return value
-    
-    def validate_new_password(self, value):
-        # Add any password strength validation here
-        return value
-    
-    def save(self):
-        user = self.context.get('request').user
-        user.set_password(self.validated_data['new_password'])
-        user.save()
-        return user

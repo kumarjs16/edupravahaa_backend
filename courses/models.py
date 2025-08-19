@@ -49,38 +49,3 @@ class Course(models.Model):
         if not self.slug:
             self.slug = slugify(self.name)
         super().save(*args, **kwargs)
-    
-
-class Enrollment(models.Model):
-    PAYMENT_STATUS_CHOICES = (
-        ('pending', 'Pending'),
-        ('completed', 'Completed'),
-        ('failed', 'Failed'),
-        ('refunded', 'Refunded'),
-    )
-    
-    student = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
-        related_name='enrollments',
-        limit_choices_to={'role': 'student'}
-    )
-    payment_status = models.CharField(
-        max_length=20,
-        choices=PAYMENT_STATUS_CHOICES,
-        default='pending'
-    )
-    payment_id = models.CharField(max_length=100, blank=True, null=True)
-    order_id = models.CharField(max_length=100, blank=True, null=True)
-    amount_paid = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-    enrolled_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    
-    class Meta:
-        db_table = 'enrollments'
-        unique_together = ['student']
-        ordering = ['-enrolled_at']
-        
-    def __str__(self):
-        return self.student.email
-

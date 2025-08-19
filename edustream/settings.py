@@ -240,3 +240,6 @@ TRIAL_SETTINGS = {
     'TEST_MODE': os.environ.get('TRIAL_TEST_MODE', 'False') == 'True',
     'ENABLE_AUTO_DELETION': os.environ.get('ENABLE_AUTO_DELETION', 'True') == 'True',
 }
+
+# email and phone number otp expiry time 
+OTP_EXPIRY_MINUTES = int(os.environ.get('OTP_EXPIRY_MINUTES', 5))

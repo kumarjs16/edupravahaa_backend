@@ -1,4 +1,4 @@
-from rest_framework import generics, status, views, generics
+from rest_framework import generics, status, views
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from django.db.models import Q
@@ -6,13 +6,11 @@ from django.utils import timezone
 from datetime import datetime, timedelta
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
-
-from .models import Course, Enrollment
-from .serializers import (
-    CourseSerializer, PurchasedCoursesSerializer
-)
+from .models import Course
+from .serializers import CourseSerializer, PurchasedCoursesSerializer
 from accounts.permissions import IsTeacher, IsStudent, IsTeacherOrAdmin, IsAdmin
 from payments.models import CourseSubscription
+
 
 class CourseListView(generics.ListAPIView):
     serializer_class = CourseSerializer
@@ -20,6 +18,20 @@ class CourseListView(generics.ListAPIView):
     
     def get_queryset(self):
         queryset = Course.objects.filter(is_active=True)
+        
+        # Apply student-specific filtering
+        user = self.request.user
+        if user.is_authenticated and user.role == 'student':
+            if not user.is_trial_expired and not user.has_purchased_courses:
+                # In trial period and no purchases: return all active courses
+                pass
+            elif user.has_purchased_courses:
+                # Not in trial and has purchases: exclude purchased courses
+                purchased_course_ids = CourseSubscription.objects.filter(
+                    student=user,
+                    payment_status='completed'
+                ).values_list('course__id', flat=True)
+                queryset = queryset.exclude(id__in=purchased_course_ids)
         
         # Filter by search query
         search = self.request.query_params.get('search', None)
@@ -34,7 +46,6 @@ class CourseListView(generics.ListAPIView):
         category = self.request.query_params.get('category', None)
         if category:
             queryset = queryset.filter(category__iexact=category)
-
             
         return queryset
 

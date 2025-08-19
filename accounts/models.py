@@ -19,7 +19,7 @@ class User(AbstractUser):
     email = models.EmailField(unique=True)
     phone_number = models.CharField(max_length=15, unique=True)
     email_verified = models.BooleanField(default=False)
-    phone_verified = models.BooleanField(default=False, max_length=13)
+    phone_verified = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -125,7 +125,7 @@ class TeacherProfile(models.Model):
         verbose_name = 'Teacher Profile'
         verbose_name_plural = 'Teacher Profiles'
     
-    def _str_(self):
+    def __str__(self):
         return f"Teacher: {self.user.get_full_name() or self.user.email}"
 
 
@@ -159,7 +159,8 @@ class OTP(models.Model):
         if not self.otp_code:
             self.otp_code = str(random.randint(1000, 9999))
         if not self.expires_at:
-            self.expires_at = timezone.now() + timedelta(minutes=10)
+            otp_expiry_minutes = getattr(settings, 'OTP_EXPIRY_MINUTES', 5)
+            self.expires_at = timezone.now() + timedelta(minutes=otp_expiry_minutes)
         super().save(*args, **kwargs)
     
     @property

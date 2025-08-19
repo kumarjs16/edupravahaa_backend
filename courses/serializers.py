@@ -1,9 +1,7 @@
 from rest_framework import serializers
-from .models import Course, Enrollment
-from accounts.serializers import UserSerializer
+from .models import Course
 from payments.models import CourseSubscription
-from django.utils import timezone
-from datetime import datetime, timedelta
+
 
 class CourseSerializer(serializers.ModelSerializer):
     class Meta:

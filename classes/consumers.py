@@ -2,7 +2,7 @@ import json
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
 from .models import ClassSchedule, ClassAttendance
-from courses.models import Enrollment
+from payments.models import CourseSubscription
 
 class WebRTCSignalingConsumer(AsyncWebsocketConsumer):
     async def connect(self):
@@ -162,7 +162,7 @@ class WebRTCSignalingConsumer(AsyncWebsocketConsumer):
             ).first()
             
             if class_schedule:
-                return Enrollment.objects.filter(
+                return CourseSubscription.objects.filter(
                     student=self.user,
                     course=class_schedule.course,
                     payment_status='completed'

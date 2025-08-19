@@ -1,30 +1,4 @@
-# Ignore environment variables
-.env 
-.env.example
-
-# Other ignores
-__pycache__/
-*.pyc
-node_modules/
-
-
-# Ignore Django migrations (but keep __init__.py so package works)
-**/migrations/*
-!**/migrations/__init__.py
-**/migrations/*.pyc
-
-
-# Media and Static (ignore generated/uploaded files, keep folders)
-media/*
-!media/.gitkeep
-static/*
-!static/.gitkeep
-
-
-
-# ======================
 # Python / Django
-# ======================
 __pycache__/
 *.py[cod]
 *.so
@@ -35,4 +9,104 @@ build/
 .eggs/
 *.log
 *.pot
-*.pyc
+*.sqlite3
+*.sqlite3-journal
+
+# Environment Variables
+.env
+.env.example
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.backup
+
+# Django Migrations (keep __init__.py)
+**/migrations/*.py
+
+
+# Media and Static (ignore generated/uploaded files, keep folders)
+media/*
+!media/.gitkeep
+static/*
+!static/.gitkeep
+
+# Virtual Environments
+venv/
+.venv/
+env/
+ENV/
+
+# Node.js (if used)
+node_modules/
+npm-debug.log
+yarn-error.log
+yarn.lock
+package-lock.json
+
+# Docker
+Dockerfile.*
+*.dockerignore
+docker-compose.*.yml
+*.tar.gz
+*.bak
+
+# IDE and Editor Files
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+*.code-workspace
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Testing and Coverage
+coverage/
+.coverage
+*.cover
+*.coverage.*
+htmlcov/
+.tox/
+.pytest_cache/
+coverage.xml
+junit.xml
+
+# Build and Deployment
+*.pid
+*.seed
+*.pid.lock
+*.gz
+*.zip
+*.tar
+
+# Local Development
+local_settings.py
+settings_local.py
+*.bak
+*.backup
+*.tmp
+*.temp
+
+# Documentation and Miscellaneous
+*.md.bak
+*.log
+*.out
+*.pid
+*.seed
+*.pid.lock
+*.prof
+*.pstats
+
+# Database Dumps
+*.sql
+*.sql.gz
+*.dump
+
+# Cache and Temporary Files
+*.cache
+*.tmp
+*.temp
+*.bak
+*.backup
